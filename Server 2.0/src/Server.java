@@ -178,7 +178,6 @@ public class Server {
         fillArrays(); //заполнение списков информацией из файлов
 
         new Thread(Server::server).start();//запуск сервера
-
         new Thread(Server::serverConsole).start();//запуск консоли сервера
     }
 
