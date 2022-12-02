@@ -3,6 +3,7 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 
 public class Phone implements Closeable {
     private final Socket socket; //сам сокет
@@ -51,7 +52,6 @@ public class Phone implements Closeable {
             writer.write(msg);
             writer.newLine();
             writer.flush();
-            System.out.println("Client with id " + id + " disconnected");
         }
     }
 

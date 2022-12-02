@@ -48,7 +48,7 @@ public class Server {
     public static Set<Phone> adminPhones = new HashSet<>();//админские сокеты
     public static Set<Phone> clientPhones = new HashSet<>();//клиентские сокеты
     public static Set<Integer> allIds = new HashSet<>();//все уникальные id
-    public static Set<Integer> activeIds = new HashSet<>();//все пользователи, активные сейчас
+    public static Set<Integer> onlineIds = new HashSet<>();//все пользователи, активные сейчас
     public static Set<Integer> adminIds = new HashSet<>();//уникальные id админов
     public static Set<Integer> clientIds = new HashSet<>();//уникальные id клиентов
     //промежуточный список запросов, которые ещё выполняются
@@ -127,9 +127,9 @@ public class Server {
 
     //обновление всех активных id
     public static void refreshActiveIDs() {
-        activeIds.clear();
+        onlineIds.clear();
         for (Phone phone : phones)
-            activeIds.add(phone.id);
+            onlineIds.add(phone.id);
     }
 
     //чтение всех зарегистрированных до этого id из файла
@@ -230,7 +230,7 @@ public class Server {
                             if (action.split("/disconnect").length > 0) {
                                 int idToDisconnect = Integer.parseInt(action.split("/disconnect ")[1]);
                                 refreshActiveIDs();
-                                if (activeIds.contains(idToDisconnect)) {
+                                if (onlineIds.contains(idToDisconnect)) {
                                     getPhoneById(phones, idToDisconnect).writeLine("SYS$DISCONNECT");
                                     printColored("Disconnected client with id " + idToDisconnect + "\n", DISCONNECTIONCOLOR);
                                     writeConnection(Math.abs(idToDisconnect), 'd');
@@ -253,7 +253,7 @@ public class Server {
                                     messageText.append(action.split(" ")[i]);
 
                                 refreshActiveIDs(); //обновление итендификаторов перед отправкой, иначе возможна отправка несуществующему клиенту
-                                if (activeIds.contains(idToSend)) {
+                                if (onlineIds.contains(idToSend)) {
                                     getPhoneById(phones, idToSend).writeLine("SYS$MSG$" + messageText);
                                     printColored("Sent message " + messageText + " to client with id: " + idToSend, LOGCOLOR);
                                 } else
@@ -325,10 +325,10 @@ public class Server {
                         connectedClientId = login(phone);
                         //если логин прошёл успешно
                         if (connectedClientId != 0) {
-                            activeIds.add(phone.id);
+                            onlineIds.add(phone.id);
                             phone.connection = "Ip: " + phone.getIp() + " id: " + connectedClientId + " root: " + root;
                             printColored("Client connected: ip address is " + phone.getIp() + ", root is " + root + ", unique id is " + Math.abs(connectedClientId), CONNECTIONCOLOR);
-                            phone.writeLine("Connected to server as " + root + " with unique id " + Math.abs(connectedClientId));
+                            phone.writeLine("LOGIN$CONNECT$" + root + "$" + Math.abs(connectedClientId));
                             writeConnection(Math.abs(connectedClientId), 'c');
                         }
                         isActive = connectedClientId != 0;
@@ -343,15 +343,13 @@ public class Server {
                             //data = C$id команды$command$args - клиент
 
                             data = phone.readLine(); //считывание данных
-
-
                             if (data != null) {
                                 String[] split = data.split("\\$");//чтобы каждый раз не сплитить строку
 
                                 //сообщение о неверной команде
                                 if (split.length == 0) {
                                     printColored("Received invalid data from client with id " + connectedClientId, INVALIDDATACOLOR);
-                                    phone.writeLine("INVALID SYNTAX");
+                                    phone.writeLine("INVALID$DATA" + data);
                                     continue;
                                 }
                                 root = split[0]; //информация об отправителе(админ/клиент)
@@ -364,28 +362,31 @@ public class Server {
                                     adminPhones.add(phone);
                                     adminIds.add(connectedClientId);
 
-                                    if (!data.matches("A\\$[\\d]+\\$[\\w]+\\$[\\w]+([ ]+[\\w]+)*")) { //регулярка для обработки
-                                        printColored("Received invalid data from client with id " + connectedClientId, INVALIDDATACOLOR);
-                                        phone.writeLine("INVALID SYNTAX");
-                                        continue;
-                                    }
                                     //получение информации
                                     //TODO НОРМАЛЬНОЕ ПОЛНОЕ ПОЛУЧЕНИЕ ИНФОРМАЦИИ
-                                    if (split[1].equals("getinfo"))
-                                        getInfo(split[2], phone);
+                                    if (split[1].equals("GET_INFO"))
+                                        if (split.length == 3)
+                                            getInfo(split[2], phone);
+                                        else
+                                            phone.writeLine("INFO$ERROR$INVALID_SYNTAX$" + data);
                                     else {
+                                        if (!data.matches("A\\$[\\d]+\\$[\\w]+\\$[\\w]+([ ]+[\\w]+)*")) { //регулярка для обработки
+                                            printColored("Received invalid data from client with id " + connectedClientId, INVALIDDATACOLOR);
+                                            phone.writeLine("INVALID$DATA" + data);
+                                            continue;
+                                        }
                                         printColored("___________________________________", LOGCOLOR);
                                         printColored("Admin data read: " + data, LOGCOLOR);
                                         //получение информации о клиенте
                                         cUniId = Integer.parseInt(split[1]);//уникальный id клиента
                                         if (cUniId == phone.id) { //проверка на отправку запроса самому себе
                                             printColored("Attempt to send request on itself on id: " + phone.id, INVALIDDATACOLOR);
-                                            phone.writeLine("INVALID ID SENT");
+                                            phone.writeLine("INVALID$SELF_ID$" + phone.id);
                                             continue;
                                         }
                                         if (adminIds.contains(cUniId)) {//проверка на отправку запроса другому админу
                                             printColored("Attempt to send request to admin with id: " + cUniId, INVALIDDATACOLOR);
-                                            phone.writeLine("INVALID ID SENT");
+                                            phone.writeLine("INVALID$ADMIN_ID$" + cUniId);
                                             continue;
                                         }
 
@@ -412,17 +413,18 @@ public class Server {
                                                 toSend.writeLine(thisReq.id + "$" + command + "$" + args);
                                             else //ошибка отправки данных незарегистрированному клиенту
                                                 printColored("Invalid command: this id is free", INVALIDDATACOLOR);
+                                            phone.writeLine("INVALID$FREE$" + cUniId);
                                         } else { //ошибка отправки оффлайн клиенту
                                             printColored("Sending error: system didn't find an online client with id " + cUniId, ERRORCOLOR);
-                                            phone.writeLine("Sending error: system didn't find an online client with id " + cUniId);
+                                            phone.writeLine("INVALID$OFFLINE_CLIENT$" + cUniId);
                                         }
                                     }
                                 } else if (root.trim().equals("C")) { //добавление информации о клиенте
                                     printColored("___________________________________", LOGCOLOR);
                                     printColored("Client data read: " + data, LOGCOLOR);
-                                    if (!data.matches("C\\$[\\d]+\\$[\\d]+\\$[\\w]+[ ]*[\\w]*")) {//регулярка для проверки данных, которые прислал клиент
+                                    if (!data.matches("C\\$[\\d]+\\$[\\d]+")) {//регулярка для проверки данных, которые прислал клиент
                                         printColored("Received invalid data from client with id " + connectedClientId, INVALIDDATACOLOR);
-                                        phone.writeLine("INVALID SYNTAX");
+                                        phone.writeLine("INVALID$DATA" + data);
                                         continue;
                                     }
 
@@ -472,11 +474,13 @@ public class Server {
                                             toSend.writeLine(response);
                                         else //ошибка отправки данных незарегистрированному администратору
                                             printColored("Invalid command: this id is free", INVALIDDATACOLOR);
+                                        phone.writeLine("INVALID$FREE$" + adminId);
                                     } else { //ошибка отправки данных оффлайн администратору
                                         printColored("Sending error: system didn't find an online admin with id " + adminId, ERRORCOLOR);
-                                        phone.writeLine("\nSending error: system didn't find an online admin with id " + adminId);
+                                        phone.writeLine("INVALID$OFFLINE_ADMIN$" + adminId);
                                     }
                                 }
+
                                 refreshActiveIDs(); //обновление итендификаторов
                                 try {
                                     Thread.sleep(10);//пауза в запросах
@@ -503,41 +507,43 @@ public class Server {
         //command - сообщение после getinfo
         new Thread(() -> {
             String toSend = "INFO$ERROR";
-            switch (command.toLowerCase(Locale.ROOT)) {
-                case "idall" -> toSend = "INFO$allIds" + activeIds.toString();
-                case "idreg" -> toSend = "INFO$idReg" + allIds.toString();
-                case "adminIds" -> toSend = "INFO$adminIds" + adminIds.toString();
-                case "clientIds" -> toSend = "INFO$clientIds" + clientIds.toString();
-                default -> {
-                    if (command.matches("[\\d]+")) { //получение ip по id
-                        int idToSend = Integer.parseInt(command);
-                        Phone cur = getPhoneById(phones, idToSend);
-                        if (cur != null)
-                            toSend = "INFO$ID" + cur.getIp();
-                        else
-                            toSend = "INFO$ERROR$INVALIDID";
-                    } else if (command.matches("[\\d]+[ ]+[\\w]+([ ]+[\\d]{2}.[\\d]{2}.[\\d]{4} [\\d]{2}.[\\d]{2}.[\\d]{4})*")) {
-                        //TODO cmd information
-                        //полученние информации о команде
-                        ArrayList<String> commands = new ArrayList<>();
-                        ArrayList<String> args = new ArrayList<>();
-                        ArrayList<String> successes = new ArrayList<>();
 
-                        int id = Integer.parseInt(command.split(" ")[0]);
-                        String cmd = command.split(" ")[1];
-                        String allCmd = readFile(mainRequestFile);
-                        String[] lines = allCmd.split("\n");
-                        for (String line : lines) {
-                            commands.add(line.split("\\$")[3]);
-                            args.add(line.split("\\$")[4]);
-                            successes.add(line.split("\\$")[5]);
-                        }
-                    } else { //сообщение о неправильной команде
-                        toSend = "INFO$ERROR$INVALIDSYNTAX";
+            if (!adminIds.contains(phone.id))
+                toSend = "INFO$ERROR$ACCESS_DENIED";
+            else
+                switch (command.toLowerCase(Locale.ROOT)) {
+                    case "id_all" -> toSend = "INFO$ONLINE$" + onlineIds.toString();
+                    case "id_reg" -> toSend = "INFO$REG$" + allIds.toString();
+                    case "admin_ids" -> toSend = "INFO$ADMINS$" + adminIds.toString();
+                    case "client_ids" -> toSend = "INFO$CLIENTS$" + clientIds.toString();
+                    default -> {
+                        if (command.matches("[\\d]+")) { //получение ip по id
+                            int idToSend = Integer.parseInt(command);
+                            Phone cur = getPhoneById(phones, idToSend);
+                            if (cur != null)
+                                toSend = "INFO$IP" + cur.getIp();
+                            else
+                                toSend = "INFO$ERROR$INVALID_ID$" + idToSend;
+                        } else if (command.matches("[\\d]+[ ]+[\\w]+([ ]+[\\d]{2}.[\\d]{2}.[\\d]{4} [\\d]{2}.[\\d]{2}.[\\d]{4})*")) {
+                            //TODO cmd information
+                            //полученние информации о команде
+                            ArrayList<String> commands = new ArrayList<>();
+                            ArrayList<String> args = new ArrayList<>();
+                            ArrayList<String> successes = new ArrayList<>();
+
+                            int id = Integer.parseInt(command.split(" ")[0]);
+                            String cmd = command.split(" ")[1];
+                            String allCmd = readFile(mainRequestFile);
+                            String[] lines = allCmd.split("\n");
+                            for (String line : lines) {
+                                commands.add(line.split("\\$")[3]);
+                                args.add(line.split("\\$")[4]);
+                                successes.add(line.split("\\$")[5]);
+                            }
+                        } else //сообщение о неправильной команде
+                            toSend = "INFO$ERROR$INVALID_SYNTAX$" + command;
                     }
                 }
-
-            }
 
             //отправка сообщения админу
             try {
@@ -657,6 +663,10 @@ public class Server {
             try {
                 refreshActiveIDs();
                 dataSent = phone.readLine(); //чтение id клиента
+                if (dataSent == null) {
+                    disconnectIfInactive(phone, Thread.currentThread());
+                    return 0;
+                }
                 root = dataSent.split("\\$")[0]; //Admin or Client + id
                 uniId = Integer.parseInt(dataSent.split("\\$")[1]);
 
@@ -664,7 +674,7 @@ public class Server {
                 if (uniId <= 0) {
                     if (allIds.contains(-uniId)) {
                         printColored("The user with id " + (-uniId) + " already exists", INVALIDDATACOLOR);
-                        phone.writeLine("Invalid id: user with id " + (-uniId) + " already exists");
+                        phone.writeLine("LOGIN$INVALID_ID$EXISTS$" + (-uniId));
                         continue;
                     }
 
@@ -680,17 +690,17 @@ public class Server {
                     break; //окончание цикла входа/регистрации
                 } else { //иначе пытаемся войти
                     if (allIds.contains(uniId)) {
-                        if (!activeIds.contains(uniId)) { //id есть в списке, но нет онлайн
+                        if (!onlineIds.contains(uniId)) { //id есть в списке, но нет онлайн
                             loginFailed = false;
                             phone.writeLine("Login success");
                             phone.id = uniId;
                         } else { //id есть в списке и есть онлайн
                             printColored("Failed to login a user with id " + uniId + ": user with this id has already logged in", INVALIDDATACOLOR);
-                            phone.writeLine("Login failed: user with id " + uniId + " has already logged in");
+                            phone.writeLine("LOGIN$INVALID_ID$ONLINE$" + (uniId));
                         }
                     } else { //ошибка логина: такого логина пока нет
                         printColored("Failed to login a user with id " + uniId + ": this id is free", INVALIDDATACOLOR);
-                        phone.writeLine("Login failed");
+                        phone.writeLine("LOGIN$INVALID_ID$FREE$" + (uniId));
                         loginFailed = true;
                     }
                 }
