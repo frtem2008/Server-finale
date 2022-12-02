@@ -97,7 +97,6 @@ public class Server {
         try {
             //получение пути к файлам
             printColored("Attempting to create files\n", LOGCOLOR);
-            printColored("Creating pathFile: " + pathFile.createNewFile(), FILECREATINGCOLOR);
             String testPath = pathFile.getAbsolutePath().replaceAll("pathFile", "");
 
             //создание log файла
