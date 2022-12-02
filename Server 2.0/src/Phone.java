@@ -46,32 +46,20 @@ public class Phone implements Closeable {
     }
 
     //отправка сообщения
-    public int writeLine(String msg) {
+    public void writeLine(String msg) throws IOException {
         if (!closed) {
-            try {
-                writer.write(msg);
-                writer.newLine();
-                writer.flush();
-                return 0;
-            } catch (IOException e) {
-                System.out.println("Client with id " + id + " disconnected");
-                return -1; //попытка отправки оффлайн киенту
-            }
+            writer.write(msg);
+            writer.newLine();
+            writer.flush();
+            System.out.println("Client with id " + id + " disconnected");
         }
-        return -2; //сокет сервера закрыт
     }
 
     //считывание сообщения
-    public String readLine() {
-        if (!closed) {
-            try {
-                return reader.readLine();
-            } catch (IOException e) {
-                System.out.println("Client with id " + id + " disconnected");
-                return "-1"; //попытка отправки оффлайн киенту
-            }
-        }
-        return "-2"; //сокет сервера закрыт
+    public String readLine() throws IOException {
+        if (!closed)
+            return reader.readLine();
+        return null;
     }
 
     //создание потока ввода
@@ -87,6 +75,7 @@ public class Phone implements Closeable {
     //чтобы можно было использовать try-catch with resources
     @Override
     public void close() throws IOException {
+        closed = true;
         writer.close();
         reader.close();
         socket.close();
@@ -99,11 +88,8 @@ public class Phone implements Closeable {
         if (x == this)
             return true;
         Phone cur = (Phone) x;
-        if (cur.socket == this.socket &&
+        return cur.socket == this.socket &&
                 cur.id == this.id &&
-                    cur.getIp().equals(this.getIp())) {
-            return true;
-        }
-        return false;
+                cur.getIp().equals(this.getIp());
     }
 }
