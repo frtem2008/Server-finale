@@ -317,11 +317,14 @@ public class Server {
                         //uniId для регистрации и авторизации
                         //aUniId для отправки данных на id администратора
                         //cUniId для отправки данных на id клиента
-                        int connectedClientId, adminId, cUniId;
-
+                        int connectedClientId, adminId, clientToSendId;
                         boolean isActive;
                         phones.add(phone); //запись о сокетах
-                        connectedClientId = login(phone);
+
+                        int[] loginInfo = login(phone);
+                        connectedClientId = loginInfo[0];
+                        root = loginInfo[1] == 1 ? "A" : "C";
+
                         //если логин прошёл успешно
                         if (connectedClientId != 0) {
                             onlineIds.add(phone.id);
@@ -377,19 +380,19 @@ public class Server {
                                         printColored("___________________________________", LOGCOLOR);
                                         printColored("Admin data read: " + data, LOGCOLOR);
                                         //получение информации о клиенте
-                                        cUniId = Integer.parseInt(split[1]);//уникальный id клиента
-                                        if (cUniId == phone.id) { //проверка на отправку запроса самому себе
+                                        clientToSendId = Integer.parseInt(split[1]);//уникальный id клиента
+                                        if (clientToSendId == phone.id) { //проверка на отправку запроса самому себе
                                             printColored("Attempt to send request on itself on id: " + phone.id, INVALIDDATACOLOR);
                                             phone.writeLine("INVALID$SELF_ID$" + phone.id);
                                             continue;
                                         }
-                                        if (adminIds.contains(cUniId)) {//проверка на отправку запроса другому админу
-                                            printColored("Attempt to send request to admin with id: " + cUniId, INVALIDDATACOLOR);
-                                            phone.writeLine("INVALID$ADMIN_ID$" + cUniId);
+                                        if (adminIds.contains(clientToSendId)) {//проверка на отправку запроса другому админу
+                                            printColored("Attempt to send request to admin with id: " + clientToSendId, INVALIDDATACOLOR);
+                                            phone.writeLine("INVALID$ADMIN_ID$" + clientToSendId);
                                             continue;
                                         }
 
-                                        printColored("Id to send: " + cUniId, LOGCOLOR);
+                                        printColored("Id to send: " + clientToSendId, LOGCOLOR);
                                         printColored("Id who sent: " + connectedClientId, LOGCOLOR);
 
                                         command = split[2];//сама команда
@@ -399,23 +402,24 @@ public class Server {
                                         printColored("Args to send: " + args, LOGCOLOR);
 
                                         //id запроса выставляется автоматически прямо в конструкторе
-                                        Request thisReq = new Request(adminId, cUniId, command, args);
+                                        Request thisReq = new Request(adminId, clientToSendId, command, args);
 
                                         //добавление запроса в список запросов и в файл
                                         tempRequests.add(thisReq);
 
                                         //отправка информации нужному клиенту
                                         refreshActiveIDs();
-                                        Phone toSend = getPhoneById(phones, cUniId);
+                                        Phone toSend = getPhoneById(phones, clientToSendId);
                                         if (toSend != null) {
-                                            if (allIds.contains(cUniId))
+                                            if (allIds.contains(clientToSendId))
                                                 toSend.writeLine(thisReq.id + "$" + command + "$" + args);
-                                            else //ошибка отправки данных незарегистрированному клиенту
+                                            else { //ошибка отправки данных незарегистрированному клиенту
                                                 printColored("Invalid command: this id is free", INVALIDDATACOLOR);
-                                            phone.writeLine("INVALID$FREE$" + cUniId);
+                                                phone.writeLine("INVALID$FREE$" + clientToSendId);
+                                            }
                                         } else { //ошибка отправки оффлайн клиенту
-                                            printColored("Sending error: system didn't find an online client with id " + cUniId, ERRORCOLOR);
-                                            phone.writeLine("INVALID$OFFLINE_CLIENT$" + cUniId);
+                                            printColored("Sending error: system didn't find an online client with id " + clientToSendId, ERRORCOLOR);
+                                            phone.writeLine("INVALID$OFFLINE_CLIENT$" + clientToSendId);
                                         }
                                     }
                                 } else if (root.trim().equals("C")) { //добавление информации о клиенте
@@ -434,7 +438,7 @@ public class Server {
                                     Request clientReq = getReqById(tempRequests, commandId);
                                     clientPhones.add(phone);
                                     //получение уникального итендификатора клиента
-                                    cUniId = Integer.parseInt(split[2]);
+                                    clientToSendId = Integer.parseInt(split[2]);
                                     clientIds.add(connectedClientId);
                                     printColored("Client id to send: " + connectedClientId, LOGCOLOR);
 
@@ -453,12 +457,12 @@ public class Server {
                                     printColored("Success to send: " + success, LOGCOLOR);
 
                                     //формирование ответа
-                                    String response = cUniId + "$" + command + "$" + args + "$" + success;
+                                    String response = clientToSendId + "$" + command + "$" + args + "$" + success;
 
                                     //обработка команды по id
                                     Request done = getReqById(tempRequests, commandId);
                                     if (done.equals(Request.ZEROREQUEST))
-                                        printColored("Client " + cUniId + " wanted to write a zeroRequest", INVALIDDATACOLOR);
+                                        printColored("Client " + clientToSendId + " wanted to write a zeroRequest", INVALIDDATACOLOR);
 
                                     //запись запроса в файл
                                     Request mainReq = new Request(done, success);
@@ -651,23 +655,33 @@ public class Server {
         return null;
     }
 
-    public static int login(Phone phone) {
+    /**
+     * @return int array[0] - client id, array[1] - root (-1 = failed, 1 - admin, 2 - client)
+     **/
+    public static int[] login(Phone phone) {
         //отправка инфы о подключении клиенту
         boolean loginFailed = true;
         //пароли и тд будут позже
-        String dataSent, root;
+        String dataReceived, root = null;
         int uniId = 0;
         //цикл входа / регистрации
         do {//пока клиент не зарегается или не войдёт
             try {
                 refreshActiveIDs();
-                dataSent = phone.readLine(); //чтение id клиента
-                if (dataSent == null) {
+                dataReceived = phone.readLine(); //чтение id клиента
+                if (dataReceived == null) {
                     disconnectIfInactive(phone, Thread.currentThread());
-                    return 0;
+                    return new int[]{0, -1};
                 }
-                root = dataSent.split("\\$")[0]; //Admin or Client + id
-                uniId = Integer.parseInt(dataSent.split("\\$")[1]);
+                if (dataReceived.split("\\$").length != 2) {
+                    printColored("Received invalid data from: " + phone + " data: " + dataReceived, INVALIDDATACOLOR);
+                    phone.writeLine("LOGIN$INVALID_SYNTAX$" + dataReceived);
+                    disconnectIfInactive(phone, Thread.currentThread());
+                    return new int[]{0, -1};
+                }
+
+                root = dataReceived.split("\\$")[0]; //Admin or Client + id
+                uniId = Integer.parseInt(dataReceived.split("\\$")[1]);
 
                 //если id отрицательный, то регистрируем пользователя
                 if (uniId <= 0) {
@@ -709,7 +723,7 @@ public class Server {
             }
         } while (loginFailed);
 
-        return Math.abs(uniId);
+        return new int[]{Math.abs(uniId), root.equals("A") ? 1 : 2};
     }
 }
 

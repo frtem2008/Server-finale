@@ -3,7 +3,6 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
 
 public class Phone implements Closeable {
     private final Socket socket; //сам сокет
