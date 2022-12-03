@@ -743,7 +743,7 @@ public class Server {
                     appendStrToFile(idFile, String.valueOf(-uniId));//добавление id в список зарегистрированных
                     printColored(register, REGISTRATIONCOLOR);
 
-                    phone.writeLine("Registration success");
+                    phone.writeLine("LOGIN$CONNECT$" + root + "$" + Math.abs(uniId));
                     allIds.add(Math.abs(uniId)); //добавление нашего id в список
                     break; //окончание цикла входа/регистрации
                 } else { //иначе пытаемся войти
