@@ -54,6 +54,14 @@ public class Phone implements Closeable {
         }
     }
 
+    @Override
+    public String toString() {
+        return "Phone{" +
+                "id=" + id +
+                "ip=" + getIp() +
+                '}';
+    }
+
     //считывание сообщения
     public String readLine() throws IOException {
         if (!closed)

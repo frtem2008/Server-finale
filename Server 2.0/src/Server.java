@@ -16,6 +16,10 @@
 //библиотеки для работы с сокетами, файлами, списками данных
 
 import java.io.*;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.net.ServerSocket;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -29,7 +33,8 @@ public class Server {
             REGISTRATIONCOLOR = "Yellow",
             FILECREATINGCOLOR = "Blue",
             ERRORCOLOR = "Red",
-            INVALIDDATACOLOR = "Purple";
+            INVALIDDATACOLOR = "Purple",
+            SERVERHEALTHCOLOR = "Green";
     //ANSI для цвета
     public static final String ANSI_RESET = "\u001B[0m";
     public static final String ANSI_BLACK = "\u001B[30m";
@@ -41,7 +46,7 @@ public class Server {
     public static final String ANSI_CYAN = "\u001B[36m";
     public static final String ANSI_WHITE = "\u001B[37m";
 
-    public static final int SERVER_PORT = 26780;//порт сервера
+    public static final int SERVER_PORT = 26780; //порт сервера
 
     public static Scanner input = new Scanner(System.in);//для консоли сервера
     public static Set<Phone> phones = new HashSet<>();//все сокеты
@@ -190,7 +195,7 @@ public class Server {
                 action = input.nextLine(); //ввод данных
 
                 switch (action) {
-                    case "/shutdown" -> { //безопасное выключение сервера
+                    case "$shutdown" -> { //безопасное выключение сервера
                         printColored("Shutting down...", DISCONNECTIONCOLOR);
                         writeOnOff("Off");//запись в логи
                         for (Phone phone : phones) {
@@ -199,35 +204,35 @@ public class Server {
                         }
                         System.exit(0);
                     }
-                    case "/connections" -> { //вывод списка всех активных подключений
+                    case "$connections" -> { //вывод списка всех активных подключений
                         if (phones.size() > 0) {
                             printColored("All active connections: ", LOGCOLOR);
                             phones.forEach(phone -> printColored(phone.connection, LOGCOLOR));
                         } else
                             printColored("No active connections", LOGCOLOR);
                     }
-                    case "/idlist" -> {//вывод всех зарегистрированных id
+                    case "$idlist" -> {//вывод всех зарегистрированных id
                         printColored("All registrated IDs: ", LOGCOLOR);
                         phones.forEach(phone -> printColored(String.valueOf(phone), LOGCOLOR));
                     }
-                    case "/help" -> { //вывод справки
+                    case "$help" -> { //вывод справки
                         printColored("___________________________________", "Cyan");
                         printColored("Help: \n", "Cyan");
                         printColored("""
-                                /help to show this
-                                /shutdown to shut the server down
-                                /disconnect <int id> to disconnect a client from server
-                                /connections to show all active connections
-                                /idlist to show all registrated ids
-                                /msg <int id> <String message> to send a message to the client
+                                $help to show this
+                                $shutdown to shut the server down
+                                $disconnect <int id> to disconnect a client from server
+                                $connections to show all active connections
+                                $idlist to show all registrated ids
+                                $msg <int id> <String message> to send a message to the client
                                 ___________________________________\040
                                 """, "Cyan");
                     }
                     default -> {
                         //обработка остальных команд при помощи регулярных выражений
-                        if (action.matches("/disconnect[ ]*\\d*[ ]*")) { // - /disconnect [int id]
-                            if (action.split("/disconnect").length > 0) {
-                                int idToDisconnect = Integer.parseInt(action.split("/disconnect ")[1]);
+                        if (action.matches("\\$disconnect[ ]*\\d*[ ]*")) { // - /disconnect [int id]
+                            if (action.split("\\$disconnect").length > 0) {
+                                int idToDisconnect = Integer.parseInt(action.split("\\$disconnect ")[1]);
                                 refreshActiveIDs();
                                 if (onlineIds.contains(idToDisconnect)) {
                                     getPhoneById(phones, idToDisconnect).writeLine("SYS$DISCONNECT");
@@ -244,8 +249,8 @@ public class Server {
                                 printColored("Disconnected " + phones.size() + " clients (all)", DISCONNECTIONCOLOR);
                                 phones.clear();
                             }
-                        } else if (action.matches("/msg[ ]+[\\d]+[ ]+([\\w][ \\-=*$#]*)+")) { // - /msg <id> <text>
-                            if (action.split("/msg").length > 0) {
+                        } else if (action.matches("\\$msg[ ]+[\\d]+[ ]+([\\w][ \\-=*$#]*)+")) { // - /msg <id> <text>
+                            if (action.split("\\$msg").length > 0) {
                                 int idToSend = Integer.parseInt(action.split(" ")[1]);
                                 StringBuilder messageText = new StringBuilder();
                                 for (int i = 2; i < action.split(" ").length; i++)
@@ -261,7 +266,7 @@ public class Server {
                         } else {
                             //сообщение о неправильном вводе в консоль
                             printColored("Invalid command", INVALIDDATACOLOR);
-                            printColored("Type /help to show all available commands", "Cyan");
+                            printColored("Type $help to show all available commands", "Cyan");
                         }
                     }
                 }
@@ -311,7 +316,7 @@ public class Server {
                 new Thread(() -> {//каждый клиент в отдельном потоке
                     try {
                         //переменные для вывода и отправки информации
-                        String data, root = "", command, args, success;
+                        String data, root, command, args, success;
 
                         //итендификатор сообщения (отслеживание выполнения)
                         //uniId для регистрации и авторизации
@@ -324,10 +329,15 @@ public class Server {
                         int[] loginInfo = login(phone);
                         connectedClientId = loginInfo[0];
                         root = loginInfo[1] == 1 ? "A" : "C";
-
+                        phone.id = connectedClientId;
                         //если логин прошёл успешно
                         if (connectedClientId != 0) {
-                            onlineIds.add(phone.id);
+                            onlineIds.add(connectedClientId);
+                            if (root.equals("A"))
+                                adminIds.add(connectedClientId);
+                            else
+                                clientIds.add(connectedClientId);
+
                             phone.connection = "Ip: " + phone.getIp() + " id: " + connectedClientId + " root: " + root;
                             printColored("Client connected: ip address is " + phone.getIp() + ", root is " + root + ", unique id is " + Math.abs(connectedClientId), CONNECTIONCOLOR);
                             phone.writeLine("LOGIN$CONNECT$" + root + "$" + Math.abs(connectedClientId));
@@ -351,7 +361,7 @@ public class Server {
                                 //сообщение о неверной команде
                                 if (split.length == 0) {
                                     printColored("Received invalid data from client with id " + connectedClientId, INVALIDDATACOLOR);
-                                    phone.writeLine("INVALID$DATA" + data);
+                                    phone.writeLine("INVALID$DATA$" + data);
                                     continue;
                                 }
                                 root = split[0]; //информация об отправителе(админ/клиент)
@@ -366,7 +376,7 @@ public class Server {
 
                                     //получение информации
                                     //TODO НОРМАЛЬНОЕ ПОЛНОЕ ПОЛУЧЕНИЕ ИНФОРМАЦИИ
-                                    if (split[1].equals("GET_INFO"))
+                                    if (split[1].equals("INFO"))
                                         if (split.length == 3)
                                             getInfo(split[2], phone);
                                         else
@@ -374,7 +384,7 @@ public class Server {
                                     else {
                                         if (!data.matches("A\\$[\\d]+\\$[\\w]+\\$[\\w]+([ ]+[\\w]+)*")) { //регулярка для обработки
                                             printColored("Received invalid data from client with id " + connectedClientId, INVALIDDATACOLOR);
-                                            phone.writeLine("INVALID$DATA" + data);
+                                            phone.writeLine("INVALID$DATA$" + data);
                                             continue;
                                         }
                                         printColored("___________________________________", LOGCOLOR);
@@ -427,7 +437,7 @@ public class Server {
                                     printColored("Client data read: " + data, LOGCOLOR);
                                     if (!data.matches("C\\$[\\d]+\\$[\\d]+")) {//регулярка для проверки данных, которые прислал клиент
                                         printColored("Received invalid data from client with id " + connectedClientId, INVALIDDATACOLOR);
-                                        phone.writeLine("INVALID$DATA" + data);
+                                        phone.writeLine("INVALID$DATA$" + data);
                                         continue;
                                     }
 
@@ -494,7 +504,6 @@ public class Server {
                         }
                     } catch (IOException e) {
                         disconnectIfInactive(phone, Thread.currentThread());
-                        e.printStackTrace();
                     }
                 }).start();
             }
@@ -514,11 +523,48 @@ public class Server {
             if (!adminIds.contains(phone.id))
                 toSend = "INFO$ERROR$ACCESS_DENIED";
             else
-                switch (command.toLowerCase(Locale.ROOT)) {
-                    case "id_all" -> toSend = "INFO$ONLINE$" + onlineIds.toString();
-                    case "id_reg" -> toSend = "INFO$REG$" + allIds.toString();
-                    case "admin_ids" -> toSend = "INFO$ADMINS$" + adminIds.toString();
-                    case "client_ids" -> toSend = "INFO$CLIENTS$" + clientIds.toString();
+                switch (command.toUpperCase(Locale.ROOT)) {
+                    case "ONLINE" -> {
+                        toSend = "INFO$ONLINE$" + onlineIds;
+                        printColored("Admin with id: " + phone.id + " requested online id list:\n" + onlineIds, LOGCOLOR);
+                    }
+                    case "REG" -> {
+                        toSend = "INFO$REG$" + allIds;
+                        printColored("Admin with id: " + phone.id + " requested registered id list:\n" + allIds, LOGCOLOR);
+                    }
+                    case "ADMINS" -> {
+                        toSend = "INFO$ADMINS$" + adminIds;
+                        printColored("Admin with id: " + phone.id + " requested admin id list:\n" + adminIds, LOGCOLOR);
+                    }
+                    case "CLIENTS" -> {
+                        toSend = "INFO$CLIENTS$" + clientIds;
+                        printColored("Admin with id: " + phone.id + " requested client id list:\n" + clientIds, LOGCOLOR);
+                    }
+                    case "HEALTH" -> {
+                        StringBuilder res = new StringBuilder();
+                        MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
+                        res.append(String.format("Max heap memory: %.2f GB\n",
+                                (double) memoryMXBean.getHeapMemoryUsage().getMax() / 1073741824));
+                        res.append(String.format("Used heap memory: %.2f GB\n\n",
+                                (double) memoryMXBean.getHeapMemoryUsage().getUsed() / 1073741824));
+                        File cDrive = new File("E:/");
+                        res.append(String.format("Total disk space: %.2f GB\n",
+                                (double) cDrive.getTotalSpace() / 1073741824));
+                        res.append(String.format("Free disk space: %.2f GB\n",
+                                (double) cDrive.getFreeSpace() / 1073741824));
+                        res.append(String.format("Usable disk space: %.2f GB\n\n",
+                                (double) cDrive.getUsableSpace() / 1073741824));
+                        ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+
+                        for (Long threadID : threadMXBean.getAllThreadIds()) {
+                            ThreadInfo info = threadMXBean.getThreadInfo(threadID);
+                            res.append('\n').append("Thread name: ").append(info.getThreadName());
+                            res.append("Thread State: ").append(info.getThreadState());
+                            res.append(String.format("CPU time: %s ns", threadMXBean.getThreadCpuTime(threadID)));
+                        }
+                        toSend = res.toString();
+                        printColored("SERVER HEALTH: \n" + toSend, SERVERHEALTHCOLOR);
+                    }
                     default -> {
                         if (command.matches("[\\d]+")) { //получение ip по id
                             int idToSend = Integer.parseInt(command);
@@ -665,7 +711,7 @@ public class Server {
         String dataReceived, root = null;
         int uniId = 0;
         //цикл входа / регистрации
-        do {//пока клиент не зарегается или не войдёт
+        do { //пока клиент не зарегается или не войдёт
             try {
                 refreshActiveIDs();
                 dataReceived = phone.readLine(); //чтение id клиента
@@ -698,7 +744,6 @@ public class Server {
                     printColored(register, REGISTRATIONCOLOR);
 
                     phone.writeLine("Registration success");
-                    phone.id = -uniId;
                     allIds.add(Math.abs(uniId)); //добавление нашего id в список
                     break; //окончание цикла входа/регистрации
                 } else { //иначе пытаемся войти
@@ -706,7 +751,6 @@ public class Server {
                         if (!onlineIds.contains(uniId)) { //id есть в списке, но нет онлайн
                             loginFailed = false;
                             phone.writeLine("Login success");
-                            phone.id = uniId;
                         } else { //id есть в списке и есть онлайн
                             printColored("Failed to login a user with id " + uniId + ": user with this id has already logged in", INVALIDDATACOLOR);
                             phone.writeLine("LOGIN$INVALID_ID$ONLINE$" + (uniId));
