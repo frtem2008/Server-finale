@@ -284,10 +284,10 @@ public class Server {
             return;
         }
         try {
-            printColored("\nClient with id " + phone.id + " disconnected\n", DISCONNECTIONCOLOR);
+            printColored("\nClient with id " + phone.id + " disconnected", DISCONNECTIONCOLOR);
             writeConnection(Math.abs(phone.id), 'd'); //запись в логи
             phones.remove(phone);//удаление сокета из списка активных
-            printColored("Interrupting client working thread", LOGCOLOR);
+            printColored("Interrupting client working thread\n", LOGCOLOR);
             phone.close();
             current.interrupt(); //остановка потока, обрабатывавшего этот сокет
             refreshActiveIDs();//обновление базы активных id при отключении
@@ -750,7 +750,7 @@ public class Server {
                     if (allIds.contains(uniId)) {
                         if (!onlineIds.contains(uniId)) { //id есть в списке, но нет онлайн
                             loginFailed = false;
-                            phone.writeLine("Login success");
+                            phone.writeLine("LOGIN$CONNECT$" + root + "$" + Math.abs(uniId));
                         } else { //id есть в списке и есть онлайн
                             printColored("Failed to login a user with id " + uniId + ": user with this id has already logged in", INVALIDDATACOLOR);
                             phone.writeLine("LOGIN$INVALID_ID$ONLINE$" + (uniId));
@@ -762,7 +762,6 @@ public class Server {
                     }
                 }
             } catch (IOException e) {
-                e.printStackTrace();
                 disconnectIfInactive(phone, Thread.currentThread());
             }
         } while (loginFailed);
