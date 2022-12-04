@@ -70,9 +70,6 @@ public class Server {
     public static File poweringFile = new File("logFolder/on or off.txt");
     //файл для запоминания информации о последнем id сообщения, выполненном каким-либо клиентом
     public static File idFile = new File("logFolder/id.txt");
-    public static File logFile = new File("logFolder/log.txt");
-    public static PrintStream stream;
-    public static PrintStream dualStream;
     public static boolean COLOREDTEXT; //будет ли использоватся цветной вывод данных
 
     //печать цветного текста
@@ -121,7 +118,6 @@ public class Server {
                     connectionsFile,
                     poweringFile,
                     idFile,
-                    logFile
             };
             for (File cur : files) {
                 if (!cur.exists())
@@ -130,10 +126,6 @@ public class Server {
                     else
                         printColored("!Failed to create file " + cur.getName(), FILECREATINGCOLOR);
             }
-            stream = new PrintStream(new FileOutputStream(logFile));
-            dualStream = new DualStream(System.out, stream);
-            System.setOut(dualStream);
-            System.setErr(stream);
         } catch (IOException e) {
             e.printStackTrace();
         }
