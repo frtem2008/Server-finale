@@ -69,7 +69,8 @@
                 command_args - параметры команды
             A$GET_INFO$<id> - получение информации о id
         КЛИЕНТ:
-            C$<command_id>$<client_id>:
+            C$<client_id>$<command_id>$<success>:
                 command_id - id команды, которую выполнил клиент
                 client_id - id клиента, который выполнил команду
+                success - успешность выполнения команды
 
