@@ -93,10 +93,10 @@ public class Server {
 
     //спрашивает пользователя о необходимости цветного вывода
     public static void initColors() {
-        //System.out.println("Do you want to use colored console? (true/false)");
-        //COLOREDTEXT = input.nextBoolean();
+        System.out.println("Do you want to use colored console? (true/false)");
+        COLOREDTEXT = input.nextBoolean();
         COLOREDTEXT = false;
-        //input.nextLine();
+        input.nextLine();
     }
 
     //создание всех файлов сервера
