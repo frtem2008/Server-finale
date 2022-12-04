@@ -96,7 +96,7 @@ public class Server {
         //System.out.println("Do you want to use colored console? (true/false)");
         //COLOREDTEXT = input.nextBoolean();
         COLOREDTEXT = false;
-        input.nextLine();
+        //input.nextLine();
     }
 
     //создание всех файлов сервера
@@ -310,7 +310,7 @@ public class Server {
     //основной поток сервера
     public static void server() {
         try (ServerSocket server = new ServerSocket(SERVER_PORT)) { //запуск сервера
-            printColored("Server started\n", "Yellow");
+            printColored("Server started with ip: " + server.getInetAddress().getHostAddress() + " On port: " + SERVER_PORT + "\n", "Yellow");
             writeOnOff("On");//запись в логи
             boolean run = true;
             while (run) {
