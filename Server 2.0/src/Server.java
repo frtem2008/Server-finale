@@ -88,14 +88,12 @@ public class Server {
             }
         else
             System.out.println(str);
-
     }
 
     //спрашивает пользователя о необходимости цветного вывода
     public static void initColors() {
         System.out.println("Do you want to use colored console? (true/false)");
         COLOREDTEXT = input.nextBoolean();
-        COLOREDTEXT = false;
         input.nextLine();
     }
 
@@ -238,6 +236,7 @@ public class Server {
                                 refreshActiveIDs();
                                 if (onlineIds.contains(idToDisconnect)) {
                                     getPhoneById(phones, idToDisconnect).writeLine("SYS$DISCONNECT");
+                                    getPhoneById(phones, idToDisconnect).close();
                                     printColored("Disconnected client with id " + idToDisconnect + "\n", DISCONNECTIONCOLOR);
                                     writeConnection(Math.abs(idToDisconnect), 'd');
                                     phones.remove(getPhoneById(phones, idToDisconnect));
@@ -286,7 +285,10 @@ public class Server {
             return;
         }
         try {
-            printColored("\nClient with id " + phone.id + " disconnected", DISCONNECTIONCOLOR);
+            if (phone.id == 0)
+                printColored("\nUnauthorized client from " + phone.getIp() + " disconnected", DISCONNECTIONCOLOR);
+            else
+                printColored("\nClient with id " + phone.id + " disconnected", DISCONNECTIONCOLOR);
             writeConnection(Math.abs(phone.id), 'd'); //запись в логи
             phones.remove(phone);//удаление сокета из списка активных
             printColored("Interrupting client working thread\n", LOGCOLOR);
