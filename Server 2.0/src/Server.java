@@ -709,6 +709,7 @@ public class Server {
             try {
                 refreshActiveIDs();
                 dataReceived = phone.readLine(); //чтение id клиента
+                phone.connection = "Attempting to log in...";
                 if (dataReceived == null) {
                     disconnectIfInactive(phone, Thread.currentThread());
                     return new int[]{0, -1};
