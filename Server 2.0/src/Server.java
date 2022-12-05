@@ -190,99 +190,108 @@ public class Server {
     public static void serverConsole() {
         String action; //пользовательский ввод
 
+        ThreadGroup parent = new ThreadGroup("Console threads");
         while (true) {
-            Phone failedPhone = null;
-            try {
-                action = input.nextLine(); //ввод данных
-
-                switch (action) {
-                    case "$shutdown" -> { //безопасное выключение сервера
-                        printColored("Shutting down...", DISCONNECTIONCOLOR);
-                        writeOnOff("Off");//запись в логи
-                        for (Phone phone : phones) {
-                            phone.writeLine("SYS$SHUTDOWN");
-                            failedPhone = phone;
+            action = input.nextLine(); //ввод данных
+            String finalAction = action;
+            Thread commandThread = new Thread(parent, () -> {
+                Phone failedPhone = null;
+                try {
+                    switch (finalAction) {
+                        case "$shutdown" -> { //безопасное выключение сервера
+                            printColored("Shutting down...", DISCONNECTIONCOLOR);
+                            writeOnOff("Off");//запись в логи
+                            for (Phone phone : phones) {
+                                phone.writeLine("SYS$SHUTDOWN");
+                                failedPhone = phone;
+                            }
+                            System.exit(0);
                         }
-                        System.exit(0);
-                    }
-                    case "$connections" -> { //вывод списка всех активных подключений
-                        if (phones.size() > 0) {
-                            printColored("All active connections: ", CONNECTIONCOLOR);
-                            phones.forEach(phone -> printColored(phone.connection, REGISTRATIONCOLOR));
-                        } else
-                            printColored("No active connections", DISCONNECTIONCOLOR);
-                    }
-                    case "$idlist" -> {//вывод всех зарегистрированных id
-                        printColored("All registrated IDs: ", LOGCOLOR);
-                        allIds.forEach(id -> printColored(String.valueOf(id), LOGCOLOR));
-                    }
-                    case "$help" -> { //вывод справки
-                        printColored("___________________________________", "Cyan");
-                        printColored("Help: \n", "Cyan");
-                        printColored("""
-                                $help to show this
-                                $shutdown to shut the server down
-                                $disconnect <int id> to disconnect a client from server
-                                $connections to show all active connections
-                                $idlist to show all registrated ids
-                                $msg <int id> <String message> to send a message to the client
-                                ___________________________________\040
-                                """, "Cyan");
-                    }
-                    default -> {
-                        //обработка остальных команд при помощи регулярных выражений
-                        if (action.matches("\\$disconnect[ ]*\\d*[ ]*")) { // - /disconnect [int id]
-                            if (action.split("\\$disconnect").length > 0) {
-                                int idToDisconnect = Integer.parseInt(action.split("\\$disconnect ")[1]);
-                                refreshActiveIDs();
-                                if (onlineIds.contains(idToDisconnect)) {
-                                    getPhoneById(phones, idToDisconnect).writeLine("SYS$DISCONNECT");
-                                    getPhoneById(phones, idToDisconnect).close();
-                                    printColored("Disconnected client with id " + idToDisconnect + "\n", DISCONNECTIONCOLOR);
-                                    writeConnection(Math.abs(idToDisconnect), 'd');
-                                    phones.remove(getPhoneById(phones, idToDisconnect));
-                                } else
-                                    printColored("Client with id " + idToDisconnect + " isn't connected", INVALIDDATACOLOR);
-                            } else {
-                                Iterator<Phone> phoneIterator = phones.iterator();
-                                int clientCount = phones.size();
-                                while (phoneIterator.hasNext()) {
-                                    Phone phone = phoneIterator.next();
-                                    phone.writeLine("SYS$DISCONNECT");
-                                    writeConnection(Math.abs(phone.id), 'd');
-                                    phone.close();
-                                    phoneIterator.remove();
+                        case "$connections" -> { //вывод списка всех активных подключений
+                            if (phones.size() > 0) {
+                                printColored("All active connections: ", CONNECTIONCOLOR);
+                                phones.forEach(phone -> printColored(phone.connection, REGISTRATIONCOLOR));
+                                printColored(phones.size() + " connections in total\n", CONNECTIONCOLOR);
+                            } else
+                                printColored("No active connections", DISCONNECTIONCOLOR);
+                        }
+                        case "$idlist" -> {//вывод всех зарегистрированных id
+                            printColored("All registrated IDs: ", LOGCOLOR);
+                            allIds.forEach(id -> printColored(String.valueOf(id), LOGCOLOR));
+                        }
+                        case "$help" -> { //вывод справки
+                            printColored("___________________________________", "Cyan");
+                            printColored("Help: \n", "Cyan");
+                            printColored("""
+                                    $help to show this
+                                    $shutdown to shut the server down
+                                    $disconnect <int id> to disconnect a client from server
+                                    $connections to show all active connections
+                                    $idlist to show all registrated ids
+                                    $msg <int id> <String message> to send a message to the client
+                                    ___________________________________\040
+                                    """, "Cyan");
+                        }
+                        default -> {
+                            //обработка остальных команд при помощи регулярных выражений
+                            if (finalAction.matches("\\$disconnect[ ]*\\d*[ ]*")) { // - /disconnect [int id]
+                                if (finalAction.split("\\$disconnect").length > 0) {
+                                    int idToDisconnect = Integer.parseInt(finalAction.split("\\$disconnect ")[1]);
+                                    refreshActiveIDs();
+                                    if (onlineIds.contains(idToDisconnect)) {
+                                        getPhoneById(phones, idToDisconnect).writeLine("SYS$DISCONNECT");
+                                        getPhoneById(phones, idToDisconnect).close();
+                                        printColored("Disconnected client with id " + idToDisconnect + "\n", DISCONNECTIONCOLOR);
+                                        writeConnection(Math.abs(idToDisconnect), 'd');
+                                        phones.remove(getPhoneById(phones, idToDisconnect));
+                                    } else
+                                        printColored("Client with id " + idToDisconnect + " isn't connected", INVALIDDATACOLOR);
+                                    if (phones.size() > 0)
+                                        printColored(phones.size() + " connections in total\n", CONNECTIONCOLOR);
+                                    else
+                                        printColored("No active connections", DISCONNECTIONCOLOR);
+                                } else {
+                                    if (phones.size() != 0) {
+                                        ArrayList<Phone> toDisconnect = new ArrayList<>(phones);
+                                        for (Phone phone : toDisconnect) {
+                                            phone.writeLine("SYS$DISCONNECT");
+                                            writeConnection(Math.abs(phone.id), 'd');
+                                            phone.close();
+                                        }
+                                        clientThreads.forEach(Thread::interrupt);
+                                        printColored("Disconnected " + phones.size() + " clients (all)", DISCONNECTIONCOLOR);
+                                        phones.clear();
+                                    }
+
+                                    printColored("No active connections", DISCONNECTIONCOLOR);
                                 }
+                            } else if (finalAction.matches("\\$msg[ ]+[\\d]+[ ]+([\\w][ \\-=*$#]*)+")) { // - /msg <id> <text>
+                                if (finalAction.split("\\$msg").length > 0) {
+                                    int idToSend = Integer.parseInt(finalAction.split(" ")[1]);
+                                    StringBuilder messageText = new StringBuilder();
+                                    for (int i = 2; i < finalAction.split(" ").length; i++)
+                                        messageText.append(finalAction.split(" ")[i]);
 
-                                clientThreads.forEach(Thread::interrupt);
-                                printColored("Disconnected " + clientCount + " clients (all)", DISCONNECTIONCOLOR);
-                                phones.clear();
+                                    refreshActiveIDs(); //обновление итендификаторов перед отправкой, иначе возможна отправка несуществующему клиенту
+                                    if (onlineIds.contains(idToSend)) {
+                                        getPhoneById(phones, idToSend).writeLine("SYS$MSG$" + messageText);
+                                        printColored("Sent message " + messageText + " to client with id: " + idToSend, LOGCOLOR);
+                                    } else
+                                        printColored("Client with id: " + idToSend + " isn't connected", INVALIDDATACOLOR);
+                                }
+                            } else {
+                                //сообщение о неправильном вводе в консоль
+                                printColored("Invalid command", INVALIDDATACOLOR);
+                                printColored("Type $help to show all available commands", "Cyan");
                             }
-                        } else if (action.matches("\\$msg[ ]+[\\d]+[ ]+([\\w][ \\-=*$#]*)+")) { // - /msg <id> <text>
-                            if (action.split("\\$msg").length > 0) {
-                                int idToSend = Integer.parseInt(action.split(" ")[1]);
-                                StringBuilder messageText = new StringBuilder();
-                                for (int i = 2; i < action.split(" ").length; i++)
-                                    messageText.append(action.split(" ")[i]);
-
-                                refreshActiveIDs(); //обновление итендификаторов перед отправкой, иначе возможна отправка несуществующему клиенту
-                                if (onlineIds.contains(idToSend)) {
-                                    getPhoneById(phones, idToSend).writeLine("SYS$MSG$" + messageText);
-                                    printColored("Sent message " + messageText + " to client with id: " + idToSend, LOGCOLOR);
-                                } else
-                                    printColored("Client with id: " + idToSend + " isn't connected", INVALIDDATACOLOR);
-                            }
-                        } else {
-                            //сообщение о неправильном вводе в консоль
-                            printColored("Invalid command", INVALIDDATACOLOR);
-                            printColored("Type $help to show all available commands", "Cyan");
                         }
                     }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    disconnectIfInactive(failedPhone, null);
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
-                disconnectIfInactive(failedPhone, null);
-            }
+            }, action);
+            commandThread.start();
         }
     }
 
