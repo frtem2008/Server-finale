@@ -71,6 +71,7 @@ public class Server {
     //файл для запоминания информации о последнем id сообщения, выполненном каким-либо клиентом
     public static File idFile = new File("logFolder/id.txt");
     public static boolean COLOREDTEXT; //будет ли использоватся цветной вывод данных
+    public static List<Thread> clientThreads = new ArrayList<>();
 
     //печать цветного текста
     public static void printColored(String str, String color) {
@@ -206,10 +207,10 @@ public class Server {
                     }
                     case "$connections" -> { //вывод списка всех активных подключений
                         if (phones.size() > 0) {
-                            printColored("All active connections: ", LOGCOLOR);
-                            phones.forEach(phone -> printColored(phone.connection, LOGCOLOR));
+                            printColored("All active connections: ", CONNECTIONCOLOR);
+                            phones.forEach(phone -> printColored(phone.connection, REGISTRATIONCOLOR));
                         } else
-                            printColored("No active connections", LOGCOLOR);
+                            printColored("No active connections", DISCONNECTIONCOLOR);
                     }
                     case "$idlist" -> {//вывод всех зарегистрированных id
                         printColored("All registrated IDs: ", LOGCOLOR);
@@ -243,11 +244,18 @@ public class Server {
                                 } else
                                     printColored("Client with id " + idToDisconnect + " isn't connected", INVALIDDATACOLOR);
                             } else {
-                                for (Phone phone : phones) {
+                                Iterator<Phone> phoneIterator = phones.iterator();
+                                int clientCount = phones.size();
+                                while (phoneIterator.hasNext()) {
+                                    Phone phone = phoneIterator.next();
                                     phone.writeLine("SYS$DISCONNECT");
                                     writeConnection(Math.abs(phone.id), 'd');
+                                    phone.close();
+                                    phoneIterator.remove();
                                 }
-                                printColored("Disconnected " + phones.size() + " clients (all)", DISCONNECTIONCOLOR);
+
+                                clientThreads.forEach(Thread::interrupt);
+                                printColored("Disconnected " + clientCount + " clients (all)", DISCONNECTIONCOLOR);
                                 phones.clear();
                             }
                         } else if (action.matches("\\$msg[ ]+[\\d]+[ ]+([\\w][ \\-=*$#]*)+")) { // - /msg <id> <text>
@@ -317,7 +325,7 @@ public class Server {
             boolean run = true;
             while (run) {
                 Phone phone = new Phone(server);//создание сокета сервера и ожидание присоединения клиентов
-                new Thread(() -> {//каждый клиент в отдельном потоке
+                Thread clientThread = new Thread(() -> {//каждый клиент в отдельном потоке
                     try {
                         //переменные для вывода и отправки информации
                         String data, root, command, args, success;
@@ -329,7 +337,6 @@ public class Server {
                         int[] loginInfo = login(phone);
                         connectedClientId = loginInfo[0];
                         root = loginInfo[1] == 1 ? "A" : "C";
-
                         phone.id = connectedClientId;
                         //если логин прошёл успешно
                         if (connectedClientId != 0) {
@@ -339,13 +346,12 @@ public class Server {
                             else
                                 clientIds.add(connectedClientId);
 
-                            phone.connection = "Ip: " + phone.getIp() + " id: " + connectedClientId + " root: " + root;
+                            phone.connection = "Ip: " + phone.getIp() + ", id: " + connectedClientId + ", root: " + root;
                             printColored("Client connected: ip address is " + phone.getIp() + ", root is " + root + ", unique id is " + Math.abs(connectedClientId), CONNECTIONCOLOR);
                             writeConnection(Math.abs(connectedClientId), 'c');
                         }
-                        isActive = connectedClientId != 0;
                         //в бесконечном цикле обрабатываем данные клиента
-                        while (isActive) {
+                        while (!Thread.currentThread().isInterrupted()) {
                             data = phone.readLine(); //считывание данных
                             if (data != null) {
                                 String[] split = data.split("\\$");//чтобы каждый раз не сплитить строку
@@ -499,7 +505,9 @@ public class Server {
                     } catch (IOException e) {
                         disconnectIfInactive(phone, Thread.currentThread());
                     }
-                }).start();
+                });
+                clientThread.start();
+                clientThreads.add(clientThread);
             }
         } catch (NullPointerException | IOException e) {
             printColored("Failed to start a server:\n_________________________", ERRORCOLOR);
