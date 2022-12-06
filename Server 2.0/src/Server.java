@@ -60,16 +60,16 @@ public class Server {
     public static Set<Request> tempRequests = new HashSet<>();
     //папка с логами для хранения логов
     public static File logFolder;
+    public static String rootDir = System.getProperty("user.dir");
     //файл для определения пути к проекту
-    public static File pathFile = new File("/root/pathFile");
     //файлы для хранения запросов
-    public static File mainRequestFile = new File("/root/logFolder/fin req.txt");
-    public static File commandIDsFile = new File("/root/logFolder/commandIDs.txt");
+    public static File mainRequestFile = new File(rootDir + "/logFolder/fin req.txt");
+    public static File commandIDsFile = new File(rootDir + "/logFolder/commandIDs.txt");
     //файлы для хранения информации о пользователях
-    public static File connectionsFile = new File("/root/logFolder/connectionsFile.txt");
-    public static File poweringFile = new File("/root/logFolder/on or off.txt");
+    public static File connectionsFile = new File(rootDir + "/logFolder/connectionsFile.txt");
+    public static File poweringFile = new File(rootDir + "/logFolder/on or off.txt");
     //файл для запоминания информации о последнем id сообщения, выполненном каким-либо клиентом
-    public static File idFile = new File("/root/logFolder/id.txt");
+    public static File idFile = new File(rootDir + "/logFolder/id.txt");
     public static boolean COLOREDTEXT; //будет ли использоватся цветной вывод данных
     public static List<Thread> clientThreads = new ArrayList<>();
 
@@ -103,12 +103,9 @@ public class Server {
         try {
             //получение пути к файлам
             printColored("Attempting to create files\n", LOGCOLOR);
-            String testPath = pathFile.getAbsolutePath().replaceAll("pathFile", "");
-            System.out.println("PATH FILE PATH: " + pathFile.getAbsolutePath());
-            System.out.println("TEST FILE PATH: " + testPath);
-
             //создание log файла
-            logFolder = new File(testPath + "/logFolder/");
+            logFolder = new File(rootDir + "/logFolder/");
+            System.out.println("ROOT DIR: " + rootDir + ", ROOT DIR PATH: " + new File(rootDir).getAbsolutePath());
             printColored("Creating logFolder folder: " + logFolder.mkdir() + "\n", FILECREATINGCOLOR);
             printColored("Logs folder path: " + logFolder.getAbsolutePath() + "\n", LOGCOLOR);
 
