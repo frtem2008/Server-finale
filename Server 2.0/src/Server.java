@@ -61,7 +61,7 @@ public class Server {
     //папка с логами для хранения логов
     public static File logFolder;
     //файл для определения пути к проекту
-    public static File pathFile = new File("~/pathFile");
+    public static File pathFile = new File("root/pathFile");
     //файлы для хранения запросов
     public static File mainRequestFile = new File("logFolder/fin req.txt");
     public static File commandIDsFile = new File("logFolder/commandIDs.txt");
