@@ -61,15 +61,15 @@ public class Server {
     //папка с логами для хранения логов
     public static File logFolder;
     //файл для определения пути к проекту
-    public static File pathFile = new File("root/pathFile");
+    public static File pathFile = new File("/root/pathFile");
     //файлы для хранения запросов
-    public static File mainRequestFile = new File("root/logFolder/fin req.txt");
-    public static File commandIDsFile = new File("root/logFolder/commandIDs.txt");
+    public static File mainRequestFile = new File("/root/logFolder/fin req.txt");
+    public static File commandIDsFile = new File("/root/logFolder/commandIDs.txt");
     //файлы для хранения информации о пользователях
-    public static File connectionsFile = new File("root/logFolder/connectionsFile.txt");
-    public static File poweringFile = new File("root/logFolder/on or off.txt");
+    public static File connectionsFile = new File("/root/logFolder/connectionsFile.txt");
+    public static File poweringFile = new File("/root/logFolder/on or off.txt");
     //файл для запоминания информации о последнем id сообщения, выполненном каким-либо клиентом
-    public static File idFile = new File("root/logFolder/id.txt");
+    public static File idFile = new File("/root/logFolder/id.txt");
     public static boolean COLOREDTEXT; //будет ли использоватся цветной вывод данных
     public static List<Thread> clientThreads = new ArrayList<>();
 
