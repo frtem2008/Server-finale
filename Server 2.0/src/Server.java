@@ -389,7 +389,7 @@ public class Server {
                                         else
                                             phone.writeLine("INFO$ERROR$INVALID_SYNTAX$" + data);
                                     else {
-                                        if (!data.matches("A\\$[\\d]+\\$[\\w]+\\$[\\w]+([ ]+[\\w]+)*")) { //регулярка для обработки
+                                        if (!data.matches("A\\$[\\d]+\\$.+\\$.+")) { //регулярка для обработки
                                             printColored("Received invalid data from client with id " + connectedClientId, INVALIDDATACOLOR);
                                             phone.writeLine("INVALID$DATA$" + data);
                                             continue;
@@ -442,7 +442,7 @@ public class Server {
                                 } else if (root.trim().equals("C")) { //добавление информации о клиенте
                                     printColored("___________________________________", LOGCOLOR);
                                     printColored("Client data read: " + data, LOGCOLOR);
-                                    if (!data.matches("C\\$[\\d]+\\$[\\d]+\\$[\\w]+")) {//регулярка для проверки данных, которые прислал клиент
+                                    if (!data.matches("C\\$[\\d]+\\$[\\d]+\\$.+")) {//регулярка для проверки данных, которые прислал клиент
                                         printColored("Received invalid data from client with id " + connectedClientId, INVALIDDATACOLOR);
                                         phone.writeLine("INVALID$DATA$" + data);
                                         continue;
@@ -464,13 +464,13 @@ public class Server {
                                     adminIds.add(adminId);
                                     printColored("Admin id to send: " + adminId, LOGCOLOR);
 
-                                    command = clientReq.cmd;//команда, которая была выполнена
+                                    command = clientReq.cmd; //команда, которая была выполнена
                                     printColored("Command to send: " + command, LOGCOLOR);
 
-                                    args = clientReq.args;//аргументы команды
+                                    args = clientReq.args; //аргументы команды
                                     printColored("Args to send: " + args, LOGCOLOR);
 
-                                    success = split[3];//успех выполнения (success/no success)
+                                    success = split[3]; //успех выполнения (success/no success)
                                     printColored("Success to send: " + success, LOGCOLOR);
 
                                     //формирование ответа админу
