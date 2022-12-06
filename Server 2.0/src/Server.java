@@ -104,6 +104,8 @@ public class Server {
             //получение пути к файлам
             printColored("Attempting to create files\n", LOGCOLOR);
             String testPath = pathFile.getAbsolutePath().replaceAll("pathFile", "");
+            System.out.println("PATH FILE PATH: " + pathFile.getAbsolutePath());
+            System.out.println("TEST FILE PATH: " + testPath);
 
             //создание log файла
             logFolder = new File(testPath + "/logFolder/");
