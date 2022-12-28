@@ -534,7 +534,13 @@ public class Server {
             else
                 switch (command.toUpperCase(Locale.ROOT)) {
                     case "ONLINE" -> {
-                        toSend = "INFO$ONLINE$" + onlineIds;
+                        StringBuffer sendBuffer = new StringBuffer("INFO$ONLINE$");
+                        phones.forEach(socket -> {
+                            sendBuffer.append(socket.getIp()).append(", ").append(socket.id).append(", ").append("root: ").append(adminIds.contains(socket.id) ? "Admin" : "Client").append(";");
+                        });
+                        if (sendBuffer.charAt(sendBuffer.length() - 1) == ';')
+                            sendBuffer.deleteCharAt(sendBuffer.length() - 1);
+                        toSend = sendBuffer.toString();
                         printColored("Admin with id: " + phone.id + " requested online id list:\n" + onlineIds, LOGCOLOR);
                     }
                     case "REG" -> {

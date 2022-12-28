@@ -44,7 +44,7 @@
             INFO$ERROR$INVALID_SYNTAX$<request> - неверный синтаксис при попытке полученя информации,
                 request - полученный сервером запрос
         УСПЕХ:
-            INFO$ONLINE$<id_list> - список всех онлайн id (формат: [id1, id2, id3])
+            INFO$ONLINE$<id_list> - список всех онлайн id (формат: ip, id, root)
             INFO$REG$<id_list> - список всех зарегистрированных id (формат: [id1, id2, id3])
             INFO$ADMINS$<id_list> - список всех зарегистрированных админов
             INFO$CLIENTS$<id_list> - список всех зарегистрированных клиентов
