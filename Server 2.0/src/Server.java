@@ -541,7 +541,7 @@ public class Server {
                         if (sendBuffer.charAt(sendBuffer.length() - 1) == ';')
                             sendBuffer.deleteCharAt(sendBuffer.length() - 1);
                         toSend = sendBuffer.toString();
-                        printColored("Admin with id: " + phone.id + " requested online id list:\n" + onlineIds, LOGCOLOR);
+                        //printColored("Admin with id: " + phone.id + " requested online id list:\n" + onlineIds, LOGCOLOR);
                     }
                     case "REG" -> {
                         toSend = "INFO$REG$" + allIds;
