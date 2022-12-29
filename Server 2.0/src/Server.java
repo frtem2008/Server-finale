@@ -308,10 +308,10 @@ public class Server {
                 printColored("\nClient with id " + phone.id + " disconnected", DISCONNECTIONCOLOR);
             writeConnection(Math.abs(phone.id), 'd'); //запись в логи
             phones.remove(phone);//удаление сокета из списка активных
-            printColored("Interrupting client working thread\n", LOGCOLOR);
+            //printColored("Interrupting client working thread\n", LOGCOLOR);
             phone.close();
             current.interrupt(); //остановка потока, обрабатывавшего этот сокет
-            refreshActiveIDs();//обновление базы активных id при отключении
+            refreshActiveIDs(); //обновление базы активных id при отключении
         } catch (IOException e) {
             e.printStackTrace();
             printColored("FAILED TO CLOSE PHONE: " + phone, ERRORCOLOR);
@@ -784,7 +784,7 @@ public class Server {
             }
         } while (loginFailed);
 
-        return new int[]{Math.abs(uniId), root.equals("Admin") ? 1 : 2};
+        return new int[]{Math.abs(uniId), root.equals("A") ? 1 : 2};
     }
 }
 
