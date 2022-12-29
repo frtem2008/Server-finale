@@ -251,18 +251,19 @@ public class Server {
                                 } else {
                                     if (phones.size() != 0) {
                                         ArrayList<Phone> toDisconnect = new ArrayList<>(phones);
-                                        int deletedClientsCount = toDisconnect.size();
+                                        int disconnectedClientsCount = toDisconnect.size();
+                                        printColored("Disconnecting " + disconnectedClientsCount + " clients...", DISCONNECTIONCOLOR);
                                         for (Phone phone : toDisconnect) {
                                             phone.writeLine("SYS$DISCONNECT");
                                             writeConnection(Math.abs(phone.id), 'd');
                                             phone.close();
                                         }
                                         clientThreads.forEach(Thread::interrupt);
-                                        printColored("Disconnected " + deletedClientsCount + " clients (all)", DISCONNECTIONCOLOR);
+                                        printColored("Disconnected " + disconnectedClientsCount + " clients (all)", DISCONNECTIONCOLOR);
                                         phones.clear();
+                                    } else {
+                                        printColored("No active connections", DISCONNECTIONCOLOR);
                                     }
-
-                                    printColored("No active connections", DISCONNECTIONCOLOR);
                                 }
                             } else if (finalAction.matches("\\$msg[ ]+[\\d]+[ ]+([\\w][ \\-=*$#]*)+")) { // - /msg <id> <text>
                                 if (finalAction.split("\\$msg").length > 0) {
