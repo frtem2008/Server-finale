@@ -250,6 +250,7 @@ public class Server {
                                         printColored("No active connections", DISCONNECTIONCOLOR);
                                 } else {
                                     if (phones.size() != 0) {
+                                        int deletedClientsCount = phones.size();
                                         ArrayList<Phone> toDisconnect = new ArrayList<>(phones);
                                         for (Phone phone : toDisconnect) {
                                             phone.writeLine("SYS$DISCONNECT");
@@ -257,7 +258,7 @@ public class Server {
                                             phone.close();
                                         }
                                         clientThreads.forEach(Thread::interrupt);
-                                        printColored("Disconnected " + phones.size() + " clients (all)", DISCONNECTIONCOLOR);
+                                        printColored("Disconnected " + deletedClientsCount + " clients (all)", DISCONNECTIONCOLOR);
                                         phones.clear();
                                     }
 
